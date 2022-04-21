@@ -1,21 +1,26 @@
-import time
 import pygame
 import sys
 import random
 
 #variables
-
 WIDTH = 800
 HEIGHT = 600
 RED = (255, 0, 0)
 BACKGROUND = (50, 50, 50)
 CELL_WALL = (200, 200, 200)
 CELL_SIZE = 40
+TICKS = 1
+
+update_time = 0
 player_pos = [0, 0]
 player_size = 19
+player_dir = [0, -1]
 close = False
 
+
 def main():
+    global player_dir
+    global update_time
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
@@ -26,24 +31,27 @@ def main():
             if event.type == pygame.QUIT:
                 sys.exit()
 
-            x = player_pos[0]
-            y = player_pos[1]
-
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_w:
-                    y -= CELL_SIZE
+                    player_dir = [0, -1]
                 elif event.key == pygame.K_s:
-                    y += CELL_SIZE
+                    player_dir = [0, 1]
                 elif event.key == pygame.K_d:
-                    x += CELL_SIZE
+                    player_dir = [1, 0]
                 elif event.key == pygame.K_a:
-                    x -= CELL_SIZE
-
-                player_pos = [x, y]
+                    player_dir = [-1, 0]
+        
+        
+        # Time based movement, player move only TICKS times per second
+        t = pygame.time.get_ticks()
+        if t - update_time > 1000 / TICKS:
+            update_time = t
+            x = player_pos[0] + player_dir[0] * CELL_SIZE
+            y = player_pos[1] + player_dir[1] * CELL_SIZE
+            player_pos = [x, y]
             
         screen.fill(BACKGROUND)
         draw_grid(screen)
-                
         pygame.draw.circle(screen, RED, player_pos, player_size)
         
         pygame.display.update()
@@ -64,7 +72,7 @@ def calc_player_pos():
     cellsY = HEIGHT / CELL_SIZE
     
     startX = random.randint(0, cellsX - 1)
-    startY = random.randint(0, cellsY - 1)
+    startY = random.randint(1, cellsY - 1)
     
     posX = startX * CELL_SIZE + CELL_SIZE / 2
     posY = startY * CELL_SIZE + CELL_SIZE / 2
