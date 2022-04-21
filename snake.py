@@ -7,7 +7,8 @@ import random
 #variables
 WIDTH = 800
 HEIGHT = 600
-RED = (255, 0, 0)
+PLAYER = (255, 255, 0)
+SNAKE_HEAD = (255, 0, 0)
 SNAKE_BODY = (200, 0, 0)
 BACKGROUND = (50, 50, 50)
 CELL_WALL = (200, 200, 200)
@@ -29,15 +30,43 @@ def main():
     global update_time
     global close
     global score
+    global food
     pygame.init()
+    pygame.font.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    game_font = pygame.font.SysFont('Arial', 30)
+    
+    start = False
+    
 
     player_pos = calc_player_pos()
     (snake_head, snake_body_list) = generate_snake()
     dir_snake = (1, 0)
 
     won = False
+    
+    text_surface = game_font.render("Pick Speed by pressing [1-3]", False, (255, 255, 255))
+    text_rect = text_surface.get_rect(center=(WIDTH/2, HEIGHT/2))
+    screen.blit(text_surface, text_rect)
+    
+    while not start:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                sys.exit()
 
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    TICKS = 1
+                    start = True
+                elif event.key == pygame.K_2:
+                    TICKS = 2
+                    start = True
+                elif event.key == pygame.K_3:
+                    TICKS = 3
+                    start = True
+                
+        pygame.display.update()
+                
     while not close:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -59,12 +88,6 @@ def main():
         if t - update_time > 1000 / TICKS:
             score += 1
             update_time = t
-            x = player_pos[0] + player_dir[0] * CELL_SIZE
-            y = player_pos[1] + player_dir[1] * CELL_SIZE
-            
-            grid_pos = get_grid_from_player([x, y])
-            if not snake_collision(grid_pos, snake_head, snake_body_list):
-                player_pos = [x, y]
             
             dir_snake = snake_move_dir(player_pos, snake_head, snake_body_list)
             
@@ -78,16 +101,24 @@ def main():
             snake_body_list.pop()
         
             snake_head = (x, y)
+            
+            x = player_pos[0] + player_dir[0] * CELL_SIZE
+            y = player_pos[1] + player_dir[1] * CELL_SIZE
+            
+            grid_pos = get_grid_from_player([x, y])
+            if not snake_collision(grid_pos, snake_head, snake_body_list):
+                player_pos = [x, y]
+
 
         screen.fill(BACKGROUND)
         draw_grid(screen)
         draw_snake(snake_head, snake_body_list, screen)
-        pygame.draw.circle(screen, RED, player_pos, player_size)
-        
-        pygame.display.update()
-        
         if lose_cond(player_pos, snake_head):
             close = True
+        else:
+            pygame.draw.circle(screen, PLAYER, player_pos, player_size)
+        
+        pygame.display.update()
 
     pygame.time.wait(2000)
     if not won:
@@ -118,7 +149,7 @@ def draw_grid(screen):
 # Draw the snake
 def draw_snake(head, body, screen):
     rect = (head[0] * CELL_SIZE, head[1] * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-    pygame.draw.rect(screen, RED, rect)
+    pygame.draw.rect(screen, SNAKE_HEAD, rect)
     
     for pos in body:
         rect = (pos[0] * CELL_SIZE, pos[1] * CELL_SIZE, CELL_SIZE, CELL_SIZE)
@@ -155,9 +186,9 @@ def snake_collision(pos_to_check, snake_head, snake_body_list):
     x = pos_to_check[0]
     y = pos_to_check[1]
     
-    if x < 0 or x > WIDTH:
+    if x < 0 or x * CELL_SIZE >= WIDTH:
         return True
-    if y < 0 or y > HEIGHT:
+    if y < 0 or y * CELL_SIZE >= HEIGHT:
         return True
     
     if pos_to_check == snake_head:
