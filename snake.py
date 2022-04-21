@@ -7,6 +7,7 @@ import random
 #variables
 WIDTH = 800
 HEIGHT = 600
+FOOD = (0, 255, 255)
 PLAYER = (255, 255, 0)
 SNAKE_HEAD = (255, 0, 0)
 SNAKE_BODY = (200, 0, 0)
@@ -24,6 +25,8 @@ score = 0
 
 snake = []
 snake_head = None
+snake_length = 3
+food = None
 
 def main():
     global player_dir
@@ -31,6 +34,7 @@ def main():
     global close
     global score
     global food
+    global snake_length
     pygame.init()
     pygame.font.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -39,9 +43,11 @@ def main():
     start = False
     
 
-    player_pos = calc_player_pos()
+    
     (snake_head, snake_body_list) = generate_snake()
     dir_snake = (1, 0)
+    
+    player_pos = calc_player_pos(snake_head)
 
     won = False
     
@@ -59,10 +65,10 @@ def main():
                     TICKS = 1
                     start = True
                 elif event.key == pygame.K_2:
-                    TICKS = 2
+                    TICKS = 1.5
                     start = True
                 elif event.key == pygame.K_3:
-                    TICKS = 3
+                    TICKS = 2
                     start = True
                 
         pygame.display.update()
@@ -82,11 +88,14 @@ def main():
                 elif event.key == pygame.K_a:
                     player_dir = [-1, 0]
         
-        
+        screen.fill(BACKGROUND)
+        playerDist = dist_to_player(snake_head, player_pos)
         # Time based movement, player move only TICKS times per second
         t = pygame.time.get_ticks()
         if t - update_time > 1000 / TICKS:
-            score += 1
+            if  playerDist >= 2:
+                score += 1 * snake_length / 3
+
             update_time = t
             
             dir_snake = snake_move_dir(player_pos, snake_head, snake_body_list)
@@ -98,7 +107,8 @@ def main():
             y = snake_head[1] + dir_snake[1]
             
             snake_body_list = [snake_head] + snake_body_list
-            snake_body_list.pop()
+            if len(snake_body_list) >= snake_length:
+                snake_body_list.pop()
         
             snake_head = (x, y)
             
@@ -106,25 +116,56 @@ def main():
             y = player_pos[1] + player_dir[1] * CELL_SIZE
             
             grid_pos = get_grid_from_player([x, y])
-            if not snake_collision(grid_pos, snake_head, snake_body_list):
+            if not snake_collision(grid_pos, snake_head, snake_body_list) and get_grid_from_player((x, y)) != food:
                 player_pos = [x, y]
+                
+            if food == None:
+                food = spawnFood(player_pos, snake_head, snake_body_list)
+            else:
+                if snake_head == food:
+                    snake_length += 1
+                    food = None
+                    
 
-
-        screen.fill(BACKGROUND)
         draw_grid(screen)
+        if food:
+            draw_food(screen, food)
         draw_snake(snake_head, snake_body_list, screen)
         if lose_cond(player_pos, snake_head):
             close = True
         else:
             pygame.draw.circle(screen, PLAYER, player_pos, player_size)
         
+        if playerDist < 2:
+            rect = pygame.Rect(0, 0, WIDTH, HEIGHT)
+            pygame.draw.rect(screen, SNAKE_HEAD, rect, int(WIDTH / 100))
+
         pygame.display.update()
 
     pygame.time.wait(2000)
+    screen.fill(BACKGROUND)
     if not won:
-        print(f"You Lost! Your score is : {score}")
+        text_surface = game_font.render(f"You Lost! Your score is : {int(score)}", False, (255, 255, 255))
     else:
-        print('YOU WON!')
+        text_surface = game_font.render(f"YOU WON!!! Your score is : {int(score)}", False, (255, 255, 255))
+    text_rect = text_surface.get_rect(center=(WIDTH/2, HEIGHT/2))
+    screen.blit(text_surface, text_rect)
+    pygame.display.update()
+    pygame.time.wait(5000)
+
+
+# Spawns a random food pellet in a valid position
+def spawnFood(player_pos, head, body_list):
+    grid_pos_p = get_grid_from_player(player_pos)
+    
+    possible = []
+    for x in range(0, int(WIDTH / CELL_SIZE)):
+        for y in range(0, int(HEIGHT / CELL_SIZE)):
+            if not snake_collision((x,y), head, body_list) and (x, y) != grid_pos_p:
+                possible.append((x,y))
+                
+    return random.choice(possible)
+        
 
 # Get the grid position from screen position
 def get_grid_from_player(player_pos):
@@ -138,6 +179,12 @@ def lose_cond(player_pos, head_snake):
     p_grid = get_grid_from_player(player_pos)
     
     return p_grid == head_snake
+
+# Draws the food pellet to the screen
+def draw_food(screen, food):
+    x = food[0] * CELL_SIZE + CELL_SIZE / 2
+    y = food[1] * CELL_SIZE + CELL_SIZE / 2
+    pygame.draw.circle(screen, FOOD, (x, y), player_size)
 
 # Draw the background grid the game plays on
 def draw_grid(screen):
@@ -156,18 +203,24 @@ def draw_snake(head, body, screen):
         pygame.draw.rect(screen, SNAKE_BODY, rect)
 
 # Get a random start position for player
-def calc_player_pos():
+def calc_player_pos(head):
     posX = 0
     posY = 0
     
     cellsX = WIDTH / CELL_SIZE
     cellsY = HEIGHT / CELL_SIZE
     
-    startX = random.randint(0, cellsX - 1)
-    startY = random.randint(1, cellsY - 1)
+    dist = 0
     
-    posX = startX * CELL_SIZE + CELL_SIZE / 2
-    posY = startY * CELL_SIZE + CELL_SIZE / 2
+    while dist < 5:
+        startX = random.randint(0, cellsX - 1)
+        startY = random.randint(1, cellsY - 1)
+
+        
+        posX = startX * CELL_SIZE + CELL_SIZE / 2
+        posY = startY * CELL_SIZE + CELL_SIZE / 2
+        
+        dist = dist_to_player(head, (posX, posY))
         
     return (posX, posY)
 
