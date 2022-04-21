@@ -36,6 +36,8 @@ def main():
     (snake_head, snake_body_list) = generate_snake()
     dir_snake = (1, 0)
 
+    won = False
+
     while not close:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -60,39 +62,22 @@ def main():
             x = player_pos[0] + player_dir[0] * CELL_SIZE
             y = player_pos[1] + player_dir[1] * CELL_SIZE
             
-            if x < 0 or x > WIDTH:
-                x = player_pos[0]
-            if y < 0 or y > HEIGHT:
-                y = player_pos[1]
-            
-            
             grid_pos = get_grid_from_player([x, y])
-            if grid_pos == snake_head or grid_pos in snake_body_list:
-                x = player_pos[0]
-                y = player_pos[1]
+            if not snake_collision(grid_pos, snake_head, snake_body_list):
+                player_pos = [x, y]
             
-            player_pos = [x, y]
+            dir_snake = snake_move_dir(player_pos, snake_head, snake_body_list)
             
+            if dir_snake[0] == 0 and dir_snake[1] == 0:
+                won = True
             
-            new_dir_snake = snake_move_dir(snake_head, player_pos)
+            x = snake_head[0] + dir_snake[0]
+            y = snake_head[1] + dir_snake[1]
             
-            x = snake_head[0] + new_dir_snake[0]
-            y = snake_head[1] + new_dir_snake[1]
-            
-            if not (x, y) in snake_body_list:
-                snake_body_list = [snake_head] + snake_body_list
-                snake_body_list.pop()
-            
-                snake_head = (x, y)
-                dir_snake = new_dir_snake
-            else:
-                x = snake_head[0] + dir_snake[0]
-                y = snake_head[1] + dir_snake[1]
-                
-                snake_body_list = [snake_head] + snake_body_list
-                snake_body_list.pop()
-            
-                snake_head = (x, y)
+            snake_body_list = [snake_head] + snake_body_list
+            snake_body_list.pop()
+        
+            snake_head = (x, y)
 
         screen.fill(BACKGROUND)
         draw_grid(screen)
@@ -105,7 +90,10 @@ def main():
             close = True
 
     pygame.time.wait(2000)
-    print(f"Your score is : {score}")
+    if not won:
+        print(f"You Lost! Your score is : {score}")
+    else:
+        print('YOU WON!')
 
 # Get the grid position from screen position
 def get_grid_from_player(player_pos):
@@ -162,27 +150,61 @@ def generate_snake():
     
     return (center, body)
 
-# Calculate where snake should move next
-# TODO: Move body check here
-def snake_move_dir(head, player_pos):
+# Returns true for collision with edges or snake
+def snake_collision(pos_to_check, snake_head, snake_body_list):
+    x = pos_to_check[0]
+    y = pos_to_check[1]
+    
+    if x < 0 or x > WIDTH:
+        return True
+    if y < 0 or y > HEIGHT:
+        return True
+    
+    if pos_to_check == snake_head:
+        return True
+    if pos_to_check in snake_body_list:
+        return True
+    
+    return False
+
+# Calculate distance to player
+def dist_to_player(pos, player_pos):
     (px, py) = get_grid_from_player(player_pos)
-    x = head[0]
-    y = head[1]
     
+    diff_x = abs(px - pos[0])
+    diff_y = abs(py - pos[1])
     
-    diff_y = py - y
-    diff_x = px - x
+    return diff_x + diff_y
+
+# Calculate where snake should move next
+def snake_move_dir(player_pos, head, body_list):
+    dirs = {}
+    dirs['W'] = [1, 0]
+    dirs['E'] = [-1, 0]
+    dirs['N'] = [0, 1]
+    dirs['S'] = [0, -1]
     
-    if abs(diff_x) > abs(diff_y):
-        if diff_x < 0:
-            return [-1, 0]
-        else:
-            return [1, 0]
-    else:
-        if diff_y < 0:
-            return [0, -1]
-        else:
-            return [0, 1]
+    dist = {}
     
+    for dir in dirs:
+        dir_vals = dirs[dir]
+        x = head[0] + dir_vals[0]
+        y = head[1] + dir_vals[1]
+        
+        if not snake_collision((x, y), head, body_list):
+            dist[dir] = dist_to_player((x, y), player_pos)
+            
+    min_dist = 1000
+    min_dir = None
+    for dir in dist:
+        val = dist[dir]
+        if val < min_dist:
+            min_dir = dir
+            min_dist = val
+    
+    if min_dir == None:
+        return [0, 0]
+    return dirs[min_dir]
+
       
 main()
